@@ -138,14 +138,13 @@ module TestQueue
     end
 
     def summarize_internal
-      puts
-      puts "==> Summary (#{@completed.size} workers in %.4fs)" % (Time.now-@start_time)
-      puts
-
       estatus = 0
       misrun_suites = []
       unassigned_suites = []
       @failures = ''
+      @total_tests = 0
+      @total_failures = 0
+      @workers_summary = []
       @completed.each do |worker|
         estatus += (worker.status.exitstatus || 1)
         @stats.record_suites(worker.suites)
@@ -163,8 +162,10 @@ module TestQueue
         summarize_worker(worker)
 
         @failures << worker.failure_output if worker.failure_output
+        @total_failures += worker.summary.match(", ([0-9]*) failures")&.[](1).to_i
+        @total_tests += worker.summary.match("([0-9]*) examples")&.[](1).to_i
 
-        puts "    [%2d] %60s      %4d suites in %.4fs      (%s %s)" % [
+        @workers_summary << "    [%2d] %60s      %4d suites in %.4fs      (%s %s)" % [
           worker.num,
           worker.summary,
           worker.suites.size,
@@ -211,7 +212,12 @@ module TestQueue
           end
         end
       end
+      puts
 
+      puts @workers_summary
+
+      puts
+      puts "==> Summary total:#{@total_tests} failures:#{@total_failures} (#{@completed.size} workers in %.4fs)" % (Time.now-@start_time)
       puts
 
       @stats.save
